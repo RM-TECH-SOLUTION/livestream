@@ -6,6 +6,7 @@ import template1Web from "./assets/Template1Web.png";
 import template2 from "./assets/Template2.jpeg";
 import template3 from "./assets/Template3.jpg";
 import template4 from "./assets/Template4.png";
+import LiveChat from "./components/LiveChat/LiveChat";
 
 const API_BASE_URL = "https://api.rmtechsolution.com";
 const THUMBNAIL_BASE_URL = `${API_BASE_URL}/uploads/thumbnails`;
@@ -446,6 +447,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
   const backgroundHero = eventDetails?.template === "Template 1" && isMobileViewport
     ? templateAssets.mobileHero
     : templateAssets.hero;
+  const chatStreamId = String(eventDetails?.id ?? eventDetails?.apiId ?? eventId);
 
 
   const handleWhatsAppShare = useCallback(() => {
@@ -523,6 +525,8 @@ function LiveEventPage({ eventId, onBackToApp }) {
                   />
                 </div>
               ) : null}
+
+              <LiveChat streamId={chatStreamId} />
             </div>
 
             {/* <div className="event-page-media template-artwork-panel">
