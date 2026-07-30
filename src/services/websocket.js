@@ -1,16 +1,10 @@
-function getDefaultChatUrl() {
-  if (import.meta.env.DEV) {
-    return "ws://localhost:8787/ws";
-  }
+const WS_BASE = import.meta.env.VITE_WS_URL;
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/ws`;
-}
-
-function normalizeWebSocketUrl(value) {
+function normalizeWebSocketBase(value) {
   const trimmedValue = String(value ?? "").trim();
+
   if (!trimmedValue) {
-    return getDefaultChatUrl();
+    return "";
   }
 
   if (trimmedValue.startsWith("http://")) {
@@ -21,7 +15,23 @@ function normalizeWebSocketUrl(value) {
     return `wss://${trimmedValue.slice("https://".length)}`;
   }
 
-  return trimmedValue;
+  if (trimmedValue.startsWith("ws://") || trimmedValue.startsWith("wss://")) {
+    return trimmedValue;
+  }
+
+  return `ws://${trimmedValue}`;
+}
+
+function buildSocketEndpoint() {
+  const normalizedBase = normalizeWebSocketBase(WS_BASE);
+  if (!normalizedBase) {
+    throw new Error("VITE_WS_URL is not configured.");
+  }
+
+  const parsedBase = new URL(normalizedBase.replace(/\/+$/, ""));
+  const pathname = parsedBase.pathname === "/" ? "/ws" : `${parsedBase.pathname.replace(/\/$/, "")}/ws`;
+  parsedBase.pathname = pathname;
+  return parsedBase.toString();
 }
 
 export function createChatWebSocketUrl(streamId, username) {
@@ -36,7 +46,7 @@ export function createChatWebSocketUrl(streamId, username) {
     throw new Error("A username is required to open chat.");
   }
 
-  const url = new URL(normalizeWebSocketUrl(import.meta.env.VITE_CHAT_WS_URL));
+  const url = new URL(buildSocketEndpoint());
   url.searchParams.set("streamId", resolvedStreamId);
   url.searchParams.set("username", resolvedUsername);
 
