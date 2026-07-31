@@ -1,22 +1,20 @@
 /* eslint-disable react/prop-types */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import template1Mobile from "./assets/Template1Mobile.png";
-import template1Web from "./assets/Template1Web.png";
-import template2 from "./assets/Template2.jpeg";
-import template3 from "./assets/Template3.jpg";
-import template4 from "./assets/Template4.png";
 import LiveChat from "./components/LiveChat/LiveChat";
 
 const API_BASE_URL = "https://api.rmtechsolution.com";
 const THUMBNAIL_BASE_URL = `${API_BASE_URL}/uploads/thumbnails`;
+const TEMPLATE_UPLOAD_BASE_URL = `${API_BASE_URL}/uploads/templates`;
+const CMS_MERCHANT_ID = 2;
 
-const templateOptions = [
-  { key: "template1", label: "Template 1", webPreview: template1Web, mobilePreview: template1Mobile },
-  { key: "template2", label: "Template 2", webPreview: template2, mobilePreview: template2 },
-  { key: "template3", label: "Template 3", webPreview: template3, mobilePreview: template3 },
-  { key: "template4", label: "Template 4", webPreview: template4, mobilePreview: template4 }
+const videoAlignOptions = [
+  { key: "left", label: "Left alignment" },
+  { key: "center", label: "Center alignment" },
+  { key: "right", label: "Right alignment" }
 ];
+
+const DEFAULT_TEMPLATE_LABEL = "Template 1";
 
 const fontFamilyOptions = [
   { key: "montserrat", label: "Montserrat", family: '"Montserrat", "Manrope", sans-serif' },
@@ -26,18 +24,11 @@ const fontFamilyOptions = [
   { key: "trebuchet", label: "Trebuchet", family: '"Trebuchet MS", "Segoe UI", sans-serif' }
 ];
 
-const liveTemplateAssets = {
-  "Template 1": { hero: template1Web, mobileHero: template1Mobile, themeClass: "template-one" },
-  "Template 2": { hero: template2, mobileHero: template2, themeClass: "template-two" },
-  "Template 3": { hero: template3, mobileHero: template3, themeClass: "template-three" },
-  "Template 4": { hero: template4, mobileHero: template4, themeClass: "template-four" }
-};
-
 const initialFormState = {
   title: "",
   subtitle: "",
   eventUrl: "eventurlname2024",
-  selectedTemplate: templateOptions[0].key,
+  selectedVideoAlign: videoAlignOptions[1].key,
   eventDate: "",
   eventHour: "01",
   eventMinute: "00",
@@ -45,6 +36,10 @@ const initialFormState = {
   selectedFontFamily: fontFamilyOptions[0].key,
   thumbnailFile: null,
   thumbnailUrl: "",
+  webTemplateFile: null,
+  webTemplateUrl: "",
+  mobileTemplateFile: null,
+  mobileTemplateUrl: "",
   clientName: ""
 };
 
@@ -71,8 +66,68 @@ function getRouteEventId(pathname) {
   return match ? match[1] : null;
 }
 
-function getTemplateLiveAssets(templateLabel) {
-  return liveTemplateAssets[templateLabel] || liveTemplateAssets["Template 1"];
+function resolveUploadUrl(assetPath, baseUrl) {
+  if (!assetPath) {
+    return "";
+  }
+
+  if (assetPath.startsWith("http")) {
+    return assetPath;
+  }
+
+  if (assetPath.startsWith("/")) {
+    return `${API_BASE_URL}${assetPath}`;
+  }
+
+  return `${baseUrl}/${String(assetPath).replace(/^\/+/, "")}`;
+}
+
+function getFirstPopulatedValue(values) {
+  return values.find((value) => typeof value === "string" && value.trim()) || "";
+}
+
+function normalizeVideoAlignValue(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (!normalized) {
+    return "center";
+  }
+
+  if (normalized === "left" || normalized.includes("left")) {
+    return "left";
+  }
+
+  if (normalized === "right" || normalized.includes("right")) {
+    return "right";
+  }
+
+  if (normalized === "center" || normalized.includes("center") || normalized.includes("centre")) {
+    return "center";
+  }
+
+  return "center";
+}
+
+function getEventTemplateUrls(event) {
+  const webTemplate = getFirstPopulatedValue([
+    event.web_template,
+    event.web_view_template,
+    event.template_web,
+    event.webTemplate,
+    event.webTemplateUrl
+  ]);
+  const mobileTemplate = getFirstPopulatedValue([
+    event.mobile_template,
+    event.mobile_view_template,
+    event.template_mobile,
+    event.mobileTemplate,
+    event.mobileTemplateUrl
+  ]);
+
+  return {
+    webTemplateUrl: resolveUploadUrl(webTemplate, TEMPLATE_UPLOAD_BASE_URL),
+    mobileTemplateUrl: resolveUploadUrl(mobileTemplate, TEMPLATE_UPLOAD_BASE_URL)
+  };
 }
 
 function getEmbedUrl(eventUrl) {
@@ -93,10 +148,38 @@ function getEmbedUrl(eventUrl) {
       return videoId ? `https://www.youtube.com/embed/${videoId}` : eventUrl;
     }
 
-    return eventUrl;
+    return /^https?:/i.test(eventUrl) ? eventUrl : "";
   } catch {
-    return eventUrl;
+    return "";
   }
+}
+
+function normalizeLiveEventDetails(event) {
+  if (!event || typeof event !== "object") {
+    return null;
+  }
+
+  const id = event.id ?? event.apiId ?? "";
+
+  return {
+    id,
+    apiId: id,
+    title: event.title ?? "",
+    subtitle: event.subtitle ?? "",
+    event_url: event.event_url ?? event.eventUrl ?? "",
+    event_date: event.event_date ?? event.eventDate ?? "",
+    event_time: event.event_time ?? event.eventTime ?? "",
+    font_family: event.font_family ?? event.fontFamily ?? "",
+    template: event.template ?? DEFAULT_TEMPLATE_LABEL,
+    thumbnail: event.thumbnail ?? event.thumbnailUrl ?? "",
+    web_template: event.web_template ?? event.webTemplate ?? event.webTemplateUrl ?? "",
+    mobile_template: event.mobile_template ?? event.mobileTemplate ?? event.mobileTemplateUrl ?? "",
+    client_name: event.client_name ?? event.clientName ?? "",
+    video_align: event.video_align ?? event.videoAlign ?? event.text_align ?? event.textAlign ?? "center",
+    text_align: event.text_align ?? event.textAlign ?? event.video_align ?? event.videoAlign ?? "center",
+    createdAt: event.createdAt ?? event.created_at ?? "",
+    updatedAt: event.updatedAt ?? event.updated_at ?? ""
+  };
 }
 
 function formatEventDate(dateString) {
@@ -163,15 +246,13 @@ function to24HourTime(eventHour, eventMinute, meridiem) {
 }
 
 function normalizeEvent(event, currentUser) {
-  const templateKey = templateOptions.find((item) => item.label === event.template)?.key ?? templateOptions[0].key;
   const fontKey = fontFamilyOptions.find((item) => item.label === event.font_family)?.key ?? fontFamilyOptions[1].key;
   const timeParts = parseTimeForForm(event.event_time);
-
-  const thumbnailUrl = event.thumbnail
-    ? event.thumbnail.startsWith("http")
-      ? event.thumbnail
-      : `${THUMBNAIL_BASE_URL}/${event.thumbnail}`
-    : "";
+  const thumbnailUrl = resolveUploadUrl(event.thumbnail, THUMBNAIL_BASE_URL);
+  const { webTemplateUrl, mobileTemplateUrl } = getEventTemplateUrls(event);
+  const selectedVideoAlign = normalizeVideoAlignValue(
+    getFirstPopulatedValue([event.video_align, event.videoAlign, event.text_align, event.textAlign])
+  );
 
   return {
     apiId: event.id,
@@ -179,13 +260,15 @@ function normalizeEvent(event, currentUser) {
     title: event.title ?? "",
     subtitle: event.subtitle ?? "",
     eventUrl: event.event_url ?? "",
-    selectedTemplate: templateKey,
+    selectedVideoAlign,
     eventDate: event.event_date ?? "",
     eventHour: timeParts.eventHour,
     eventMinute: timeParts.eventMinute,
     meridiem: timeParts.meridiem,
     selectedFontFamily: fontKey,
     thumbnailUrl,
+    webTemplateUrl,
+    mobileTemplateUrl,
     clientName: event.client_name ?? "",
     date: formatEventDate(event.event_date),
     time: formatEventTime(event.event_time),
@@ -222,22 +305,78 @@ async function fetchLiveEventById(eventId) {
       method: "POST",
       body: formData
     });
-    return Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
+    const payload = Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
+    return normalizeLiveEventDetails(payload);
   } catch {
     const data = await requestApi(`fetchLiveEvent.php?id=${encodeURIComponent(eventId)}`);
-    return Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
+    const payload = Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
+    return normalizeLiveEventDetails(payload);
   }
 }
 
-function buildEventFormData(formState, editingEventId) {
+function extractUploadedImageUrl(payload) {
+  const possibleValues = [
+    payload?.imageUrl,
+    payload?.image_url,
+    payload?.url,
+    payload?.fileUrl,
+    payload?.file_url,
+    payload?.path,
+    payload?.filePath,
+    payload?.oldImageUrl,
+    payload?.old_image_url,
+    payload?.data?.imageUrl,
+    payload?.data?.image_url,
+    payload?.data?.url,
+    payload?.data?.fileUrl,
+    payload?.data?.file_url,
+    payload?.data?.path,
+    payload?.data?.filePath,
+    payload?.data?.oldImageUrl,
+    payload?.data?.old_image_url
+  ];
+
+  return getFirstPopulatedValue(possibleValues);
+}
+
+async function uploadCmsImage(file, oldImageUrl = "") {
+  if (!file) {
+    return "";
+  }
+
   const formData = new FormData();
-  const selectedTemplate = templateOptions.find((item) => item.key === formState.selectedTemplate) ?? templateOptions[0];
+  formData.append("image", file);
+  formData.append("merchantId", String(CMS_MERCHANT_ID));
+
+  if (oldImageUrl) {
+    formData.append("oldImageUrl", oldImageUrl);
+  }
+
+  const data = await requestApi("uploadCmsImage", {
+    method: "POST",
+    body: formData
+  });
+
+  const uploadedUrl = extractUploadedImageUrl(data);
+
+  if (!uploadedUrl) {
+    throw new Error("Image upload completed but no image URL was returned.");
+  }
+
+  return uploadedUrl;
+}
+
+function buildEventFormData(formState, editingEventId, assetUrls = {}) {
+  const formData = new FormData();
   const selectedFontFamily = fontFamilyOptions.find((item) => item.key === formState.selectedFontFamily) ?? fontFamilyOptions[0];
+  const selectedVideoAlign = normalizeVideoAlignValue(formState.selectedVideoAlign || videoAlignOptions[1].key);
 
   formData.append("title", formState.title.trim());
   formData.append("subtitle", formState.subtitle.trim());
   formData.append("event_url", formState.eventUrl.trim());
-  formData.append("template", selectedTemplate.label);
+  formData.append("template", DEFAULT_TEMPLATE_LABEL);
+  formData.append("video_align", selectedVideoAlign);
+  formData.append("text_align", selectedVideoAlign);
   formData.append("event_date", formState.eventDate);
   formData.append("event_time", to24HourTime(formState.eventHour, formState.eventMinute, formState.meridiem));
   formData.append("font_family", selectedFontFamily.label);
@@ -247,8 +386,22 @@ function buildEventFormData(formState, editingEventId) {
     formData.append("id", String(editingEventId));
   }
 
-  if (formState.thumbnailFile) {
-    formData.append("thumbnail", formState.thumbnailFile);
+  if (assetUrls.thumbnailUrl) {
+    formData.append("thumbnail", assetUrls.thumbnailUrl);
+  } else if (formState.thumbnailUrl) {
+    formData.append("thumbnail", formState.thumbnailUrl);
+  }
+
+  if (assetUrls.webTemplateUrl) {
+    formData.append("web_template", assetUrls.webTemplateUrl);
+  } else if (formState.webTemplateUrl) {
+    formData.append("web_template", formState.webTemplateUrl);
+  }
+
+  if (assetUrls.mobileTemplateUrl) {
+    formData.append("mobile_template", assetUrls.mobileTemplateUrl);
+  } else if (formState.mobileTemplateUrl) {
+    formData.append("mobile_template", formState.mobileTemplateUrl);
   }
 
   return formData;
@@ -437,16 +590,20 @@ function LiveEventPage({ eventId, onBackToApp }) {
     };
   }, [eventId]);
 
-  const resolvedThumbnail = eventDetails?.thumbnail
-    ? eventDetails.thumbnail.startsWith("http")
-      ? eventDetails.thumbnail
-      : `${THUMBNAIL_BASE_URL}/${eventDetails.thumbnail}`
-    : "";
-  const templateAssets = getTemplateLiveAssets(eventDetails?.template);
+  const customTemplateUrls = getEventTemplateUrls(eventDetails || {});
+  const eventThumbnailUrl = resolveUploadUrl(eventDetails?.thumbnail, THUMBNAIL_BASE_URL);
   const eventEmbedUrl = getEmbedUrl(eventDetails?.event_url);
-  const backgroundHero = eventDetails?.template === "Template 1" && isMobileViewport
-    ? templateAssets.mobileHero
-    : templateAssets.hero;
+  const eventVideoAlign = normalizeVideoAlignValue(
+    getFirstPopulatedValue([eventDetails?.video_align, eventDetails?.videoAlign, eventDetails?.text_align, eventDetails?.textAlign])
+  );
+  const videoRowJustifyContent = eventVideoAlign === "left"
+    ? "flex-start"
+    : eventVideoAlign === "right"
+      ? "flex-end"
+      : "center";
+  const backgroundHero = isMobileViewport
+    ? customTemplateUrls.mobileTemplateUrl || customTemplateUrls.webTemplateUrl || eventThumbnailUrl
+    : customTemplateUrls.webTemplateUrl || customTemplateUrls.mobileTemplateUrl || eventThumbnailUrl;
   const chatStreamId = String(eventDetails?.id ?? eventDetails?.apiId ?? eventId);
 
 
@@ -466,9 +623,18 @@ function LiveEventPage({ eventId, onBackToApp }) {
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }, [eventDetails]);
 
+  const formattedUpdatedAt = useMemo(() => {
+    if (!eventDetails?.updatedAt) {
+      return "";
+    }
+
+    const parsed = new Date(String(eventDetails.updatedAt).replace(" ", "T"));
+    return Number.isNaN(parsed.getTime()) ? eventDetails.updatedAt : parsed.toLocaleString();
+  }, [eventDetails]);
+
   return (
     <main
-      className={`event-page ${templateAssets.themeClass}`}
+      className="event-page"
       style={{
         "--event-bg-image": `url(${backgroundHero})`,
         backgroundImage: `url(${backgroundHero})`,
@@ -511,18 +677,24 @@ function LiveEventPage({ eventId, onBackToApp }) {
             <p className="event-page-datetime">
               {formatEventDate(eventDetails.event_date)} from {formatEventTime(eventDetails.event_time)},
             </p>
+            {/* <div className="event-meta-row">
+              {eventDetails.client_name ? <span className="event-meta-pill">Client: {eventDetails.client_name}</span> : null}
+              {formattedUpdatedAt ? <span className="event-meta-pill">Updated: {formattedUpdatedAt}</span> : null}
+            </div> */}
           </div>
 
           <div className="event-page-layout">
-            <div className="event-page-copy">
+            <div className="event-page-copy" style={{width:"100%"}}>
               {eventEmbedUrl ? (
-                <div className="event-video-frame">
-                  <iframe
-                    src={eventEmbedUrl}
-                    title={eventDetails.title || "Live Event"}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
+                <div className="event-video-row" style={{ justifyContent: videoRowJustifyContent }}>
+                  <div className="event-video-frame">
+                    <iframe
+                      src={eventEmbedUrl}
+                      title={eventDetails.title || "Live Event"}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
                 </div>
               ) : null}
 
@@ -623,11 +795,47 @@ function CreateSection({
   submitSuccess,
   onFieldChange,
   onThumbnailChange,
+  onWebTemplateChange,
+  onMobileTemplateChange,
   onSubmit,
   onCancelEdit
 }) {
-  const activeTemplate = templateOptions.find((item) => item.key === formState.selectedTemplate) ?? templateOptions[0];
+  const webTemplateInputRef = useRef(null);
+  const mobileTemplateInputRef = useRef(null);
   const selectedFontFamily = fontFamilyOptions.find((item) => item.key === formState.selectedFontFamily) ?? fontFamilyOptions[0];
+  const [webTemplatePreviewUrl, setWebTemplatePreviewUrl] = useState(formState.webTemplateUrl || "");
+  const [mobileTemplatePreviewUrl, setMobileTemplatePreviewUrl] = useState(formState.mobileTemplateUrl || "");
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState(formState.thumbnailUrl || "");
+
+  useEffect(() => {
+    let nextWebTemplatePreviewUrl = formState.webTemplateUrl || "";
+    let nextMobileTemplatePreviewUrl = formState.mobileTemplateUrl || "";
+    let nextThumbnailPreviewUrl = formState.thumbnailUrl || "";
+    let objectUrls = [];
+
+    if (formState.webTemplateFile) {
+      nextWebTemplatePreviewUrl = URL.createObjectURL(formState.webTemplateFile);
+      objectUrls.push(nextWebTemplatePreviewUrl);
+    }
+
+    if (formState.mobileTemplateFile) {
+      nextMobileTemplatePreviewUrl = URL.createObjectURL(formState.mobileTemplateFile);
+      objectUrls.push(nextMobileTemplatePreviewUrl);
+    }
+
+    if (formState.thumbnailFile) {
+      nextThumbnailPreviewUrl = URL.createObjectURL(formState.thumbnailFile);
+      objectUrls.push(nextThumbnailPreviewUrl);
+    }
+
+    setWebTemplatePreviewUrl(nextWebTemplatePreviewUrl);
+    setMobileTemplatePreviewUrl(nextMobileTemplatePreviewUrl);
+    setThumbnailPreviewUrl(nextThumbnailPreviewUrl);
+
+    return () => {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [formState.mobileTemplateFile, formState.mobileTemplateUrl, formState.thumbnailFile, formState.thumbnailUrl, formState.webTemplateFile, formState.webTemplateUrl]);
 
   return (
     <section>
@@ -639,16 +847,67 @@ function CreateSection({
           <label>Subtitle<input value={formState.subtitle} onChange={(event) => onFieldChange("subtitle", event.target.value)} /></label>
           <label>URL *<input value={formState.eventUrl} onChange={(event) => onFieldChange("eventUrl", event.target.value)} required /></label>
           <label>
-            Template
-            <select value={formState.selectedTemplate} onChange={(event) => onFieldChange("selectedTemplate", event.target.value)}>
-              {templateOptions.map((item) => (
+            Video Alignment
+            <select value={formState.selectedVideoAlign} onChange={(event) => onFieldChange("selectedVideoAlign", event.target.value)}>
+              {videoAlignOptions.map((item) => (
                 <option key={item.key} value={item.key}>{item.label}</option>
               ))}
             </select>
-            <div className="template-thumb" aria-label="Selected template preview">
-              <img src={activeTemplate.webPreview} alt={`${activeTemplate.label} thumbnail`} className="template-thumb-image" />
-            </div>
           </label>
+        </div>
+
+        <div className="template-upload-grid" aria-label="Selected template previews">
+          <div className="template-thumb">
+            <p className="template-thumb-label">Web View</p>
+            {webTemplatePreviewUrl ? <img src={webTemplatePreviewUrl} alt="Web view thumbnail" className="template-thumb-image" /> : <div className="template-thumb-empty" aria-hidden="true" />}
+            <label className="template-thumb-control">
+              Or Upload Web View Template
+              <button
+                type="button"
+                className="choose-template-btn"
+                onClick={() => webTemplateInputRef.current?.click()}
+              >
+                Choose
+              </button>
+              <input
+                ref={webTemplateInputRef}
+                className="hidden-template-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  onWebTemplateChange(event.target.files?.[0] ?? null);
+                  onFieldChange("webTemplateUrl", "");
+                }}
+              />
+            </label>
+          </div>
+          <div className="template-thumb">
+            <p className="template-thumb-label">Mobile View</p>
+            {mobileTemplatePreviewUrl ? <img src={mobileTemplatePreviewUrl} alt="Mobile view thumbnail" className="template-thumb-image" /> : <div className="template-thumb-empty" aria-hidden="true" />}
+            <label className="template-thumb-control">
+              Or Upload Mobile View Template
+              <button
+                type="button"
+                className="choose-template-btn"
+                onClick={() => mobileTemplateInputRef.current?.click()}
+              >
+                Choose
+              </button>
+              <input
+                ref={mobileTemplateInputRef}
+                className="hidden-template-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  onMobileTemplateChange(event.target.files?.[0] ?? null);
+                  onFieldChange("mobileTemplateUrl", "");
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="grid two">
           <label>Date *<input type="date" value={formState.eventDate} onChange={(event) => onFieldChange("eventDate", event.target.value)} required /></label>
           <label>Time *
             <div className="time-row">
@@ -678,8 +937,13 @@ function CreateSection({
           Thumbnail
           <input type="file" accept="image/*" onChange={(event) => onThumbnailChange(event.target.files?.[0] ?? null)} />
         </label>
-        {formState.thumbnailFile ? <p className="form-note">Selected file: {formState.thumbnailFile.name}</p> : null}
-        {!formState.thumbnailFile && formState.thumbnailUrl ? <p className="form-note">Current thumbnail already uploaded.</p> : null}
+
+        <div className="template-upload-grid" aria-label="Thumbnail preview">
+          <div className="template-thumb">
+            <p className="template-thumb-label">Thumbnail Preview</p>
+            {thumbnailPreviewUrl ? <img src={thumbnailPreviewUrl} alt="Thumbnail preview" className="template-thumb-image" /> : <div className="template-thumb-empty" aria-hidden="true" />}
+          </div>
+        </div>
 
         <h3>Client Information</h3>
         <label>Client Name *<input value={formState.clientName} onChange={(event) => onFieldChange("clientName", event.target.value)} required /></label>
@@ -890,7 +1154,7 @@ function App() {
       title: row.title,
       subtitle: row.subtitle,
       eventUrl: row.eventUrl,
-      selectedTemplate: row.selectedTemplate,
+      selectedVideoAlign: row.selectedVideoAlign || videoAlignOptions[1].key,
       eventDate: row.eventDate,
       eventHour: row.eventHour,
       eventMinute: row.eventMinute,
@@ -898,6 +1162,10 @@ function App() {
       selectedFontFamily: row.selectedFontFamily,
       thumbnailFile: null,
       thumbnailUrl: row.thumbnailUrl,
+      webTemplateFile: null,
+      webTemplateUrl: row.webTemplateUrl,
+      mobileTemplateFile: null,
+      mobileTemplateUrl: row.mobileTemplateUrl,
       clientName: row.clientName
     });
     setEditingEventId(row.apiId);
@@ -919,8 +1187,28 @@ function App() {
     setSubmitSuccess("");
 
     try {
+      let nextThumbnailUrl = formState.thumbnailUrl;
+      let nextWebTemplateUrl = formState.webTemplateUrl;
+      let nextMobileTemplateUrl = formState.mobileTemplateUrl;
+
+      if (formState.thumbnailFile) {
+        nextThumbnailUrl = await uploadCmsImage(formState.thumbnailFile, formState.thumbnailUrl);
+      }
+
+      if (formState.webTemplateFile) {
+        nextWebTemplateUrl = await uploadCmsImage(formState.webTemplateFile, formState.webTemplateUrl);
+      }
+
+      if (formState.mobileTemplateFile) {
+        nextMobileTemplateUrl = await uploadCmsImage(formState.mobileTemplateFile, formState.mobileTemplateUrl);
+      }
+
       const endpoint = editingEventId ? "updateLiveEvent.php" : "createLiveEvent.php";
-      const body = buildEventFormData(formState, editingEventId);
+      const body = buildEventFormData(formState, editingEventId, {
+        thumbnailUrl: nextThumbnailUrl,
+        webTemplateUrl: nextWebTemplateUrl,
+        mobileTemplateUrl: nextMobileTemplateUrl
+      });
       const data = await requestApi(endpoint, {
         method: "POST",
         body
@@ -1017,6 +1305,8 @@ function App() {
             submitSuccess={submitSuccess}
             onFieldChange={handleFormFieldChange}
             onThumbnailChange={(file) => handleFormFieldChange("thumbnailFile", file)}
+            onWebTemplateChange={(file) => handleFormFieldChange("webTemplateFile", file)}
+            onMobileTemplateChange={(file) => handleFormFieldChange("mobileTemplateFile", file)}
             onSubmit={handleFormSubmit}
             onCancelEdit={resetForm}
           />
