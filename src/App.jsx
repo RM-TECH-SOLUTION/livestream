@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import LiveChat from "./components/LiveChat/LiveChat";
+import { buildShareMessage } from "./utils/share";
 
 const API_BASE_URL = "https://api.rmtechsolution.com";
 const THUMBNAIL_BASE_URL = `${API_BASE_URL}/uploads/thumbnails`;
@@ -58,11 +59,11 @@ function slugify(value) {
 }
 
 function getEventRoute(eventId, eventName) {
-  return `/${eventId}/${slugify(eventName)}`;
+  return `/share/${eventId}/${slugify(eventName)}`;
 }
 
 function getRouteEventId(pathname) {
-  const match = pathname.match(/^\/(\d+)(?:\/[^/]+)?\/?$/);
+  const match = pathname.match(/^\/(?:share\/)?(\d+)(?:\/[^/]+)?\/?$/);
   return match ? match[1] : null;
 }
 
@@ -611,17 +612,28 @@ function LiveEventPage({ eventId, onBackToApp }) {
     if (!eventDetails) return;
 
     const title = eventDetails.title || "Live Event";
-    const date = formatEventDate(eventDetails.event_date);
-    const time = formatEventTime(eventDetails.event_time);
-    const url = window.location.href || `${window.location.origin}${getEventRoute(eventDetails.id ?? eventDetails.apiId ?? "", title)}`;
-
-    // Construct the share message (title, date/time and URL)
-    const message = `${title}\n${date} ${time}\n${url}`;
+    const shareEventId = String(eventDetails.id ?? eventDetails.apiId ?? eventId ?? "");
+console.log(eventDetails.thumbnail,"eventDetails.thumbnail")
+    const slug = slugify(title);
+    const sharePageUrl =
+      `${window.location.origin}/share.php?id=${shareEventId}&type=live&slug=${encodeURIComponent(slug)}`;
+    const thumbnail = eventDetails.thumbnail || eventDetails.thumbnailUrl || eventDetails.image || eventDetails.image_url || "";
+    const eventType = eventDetails.template || eventDetails.event_type || eventDetails.type || "Live Event";
+    const message = buildShareMessage(
+      {
+        title,
+        event_date: eventDetails.event_date,
+        event_time: eventDetails.event_time,
+        thumbnail,
+        template: eventType
+      },
+      sharePageUrl
+    );
     const encoded = encodeURIComponent(message);
-    const shareUrl = `https://wa.me/?text=${encoded}`;
+    const whatsappShareUrl = `https://wa.me/?text=${encoded}`;
 
-    window.open(shareUrl, "_blank", "noopener,noreferrer");
-  }, [eventDetails]);
+    window.open(whatsappShareUrl, "_blank", "noopener,noreferrer");
+  }, [eventDetails, eventId]);
 
   const formattedUpdatedAt = useMemo(() => {
     if (!eventDetails?.updatedAt) {
