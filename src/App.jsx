@@ -59,7 +59,7 @@ function slugify(value) {
 }
 
 function getEventRoute(eventId, eventName) {
-  return `/share/${eventId}/${slugify(eventName)}`;
+  return `/share.php?id=${eventId}&type=live&slug=${slugify(eventName)}`;
 }
 
 function getRouteEventId(pathname) {
