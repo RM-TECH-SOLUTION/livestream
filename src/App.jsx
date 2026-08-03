@@ -1182,18 +1182,8 @@ function App() {
   };
 
   const handlePreviewClick = (row) => {
-    const shareEventId = String(row.apiId ?? "");
-    const slug = slugify(row.name || row.title);
-    const sharePageUrl = new URL(
-      `/share.php?id=${shareEventId}&type=live&slug=${encodeURIComponent(slug)}`,
-      window.location.origin
-    ).toString();
-
-    console.log("Preview Share URL:", sharePageUrl);
-
-    // Show the public share URL in the address bar but keep app routing
-    window.history.pushState({}, "", sharePageUrl);
     const nextPath = getEventRoute(row.apiId, row.name || row.title);
+    window.history.pushState({}, "", nextPath);
     setCurrentPath(nextPath);
   };
 
