@@ -613,15 +613,22 @@ function LiveEventPage({ eventId, onBackToApp }) {
     const title = eventDetails.title || "Live Event";
     const date = formatEventDate(eventDetails.event_date);
     const time = formatEventTime(eventDetails.event_time);
-    const url = window.location.href || `${window.location.origin}${getEventRoute(eventDetails.id ?? eventDetails.apiId ?? "", title)}`;
+    const shareEventId = String(eventDetails.id ?? eventDetails.apiId ?? eventId ?? "");
+    const slug = slugify(title);
+    const sharePageUrl = new URL(
+      `/share.php?id=${shareEventId}&type=live&slug=${encodeURIComponent(slug)}`,
+      window.location.origin
+    ).toString();
+
+    console.log("WhatsApp Share URL:", sharePageUrl);
 
     // Construct the share message (title, date/time and URL)
-    const message = `${title}\n${date} ${time}\n${url}`;
+    const message = `${title}\n${date} ${time}\n${sharePageUrl}`;
     const encoded = encodeURIComponent(message);
     const shareUrl = `https://wa.me/?text=${encoded}`;
 
     window.open(shareUrl, "_blank", "noopener,noreferrer");
-  }, [eventDetails]);
+  }, [eventDetails, eventId]);
 
   const formattedUpdatedAt = useMemo(() => {
     if (!eventDetails?.updatedAt) {
@@ -1175,8 +1182,18 @@ function App() {
   };
 
   const handlePreviewClick = (row) => {
+    const shareEventId = String(row.apiId ?? "");
+    const slug = slugify(row.name || row.title);
+    const sharePageUrl = new URL(
+      `/share.php?id=${shareEventId}&type=live&slug=${encodeURIComponent(slug)}`,
+      window.location.origin
+    ).toString();
+
+    console.log("Preview Share URL:", sharePageUrl);
+
+    // Show the public share URL in the address bar but keep app routing
+    window.history.pushState({}, "", sharePageUrl);
     const nextPath = getEventRoute(row.apiId, row.name || row.title);
-    window.history.pushState({}, "", nextPath);
     setCurrentPath(nextPath);
   };
 
