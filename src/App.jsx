@@ -613,12 +613,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
     const title = eventDetails.title || "Live Event";
     const date = formatEventDate(eventDetails.event_date);
     const time = formatEventTime(eventDetails.event_time);
-    const shareEventId = String(eventDetails.id ?? eventDetails.apiId ?? eventId ?? "");
-    const slug = slugify(title);
-    const sharePageUrl = new URL(
-      `/share.php?id=${shareEventId}&type=live&slug=${encodeURIComponent(slug)}`,
-      window.location.origin
-    ).toString();
+    const sharePageUrl = window.location.href;
 
     console.log("WhatsApp Share URL:", sharePageUrl);
 
@@ -628,7 +623,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
     const shareUrl = `https://wa.me/?text=${encoded}`;
 
     window.open(shareUrl, "_blank", "noopener,noreferrer");
-  }, [eventDetails, eventId]);
+  }, [eventDetails]);
 
   const formattedUpdatedAt = useMemo(() => {
     if (!eventDetails?.updatedAt) {
