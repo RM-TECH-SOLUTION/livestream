@@ -639,7 +639,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
     const time = formatEventTime(eventDetails.event_time);
     const sharePageUrl = window.location.href;
 
-    console.log("WhatsApp Share URL:", sharePageUrl);
+    
 
     // Construct the share message (title, date/time and URL)
     const message = `${title}\n${date} ${time}\n${sharePageUrl}`;
@@ -648,6 +648,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
 
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }, [eventDetails]);
+  console.log("WhatsApp Share URL:", eventDetails?.thumbnail);
 
   const formattedUpdatedAt = useMemo(() => {
     if (!eventDetails?.updatedAt) {
