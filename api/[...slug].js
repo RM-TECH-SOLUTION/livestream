@@ -15,9 +15,9 @@ export default async function handler(req, res) {
   try {
     // Fetch event data
     const response = await fetch(
-      `https://api.rmtechsolution.com/livestream-events/${eventId}`,
+      `https://api.rmtechsolution.com/fetchLiveEvent.php?id=${eventId}`,
       {
-        method: "POST",
+        method: "GET",
         headers: { "Content-Type": "application/json" },
       }
     );
