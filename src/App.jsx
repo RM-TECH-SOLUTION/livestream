@@ -571,6 +571,30 @@ function LiveEventPage({ eventId, onBackToApp }) {
 
         if (isMounted) {
           setEventDetails(data);
+          
+          // Update meta tags dynamically
+          const thumbnailUrl = resolveUploadUrl(data.thumbnail, THUMBNAIL_BASE_URL);
+          const ogImageMeta = document.querySelector('meta[property="og:image"]');
+          const twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
+          const pageTitle = document.querySelector('title');
+          const ogTitleMeta = document.querySelector('meta[property="og:title"]');
+          const twitterTitleMeta = document.querySelector('meta[name="twitter:title"]');
+
+          if (ogImageMeta && thumbnailUrl) {
+            ogImageMeta.setAttribute("content", thumbnailUrl);
+          }
+          if (twitterImageMeta && thumbnailUrl) {
+            twitterImageMeta.setAttribute("content", thumbnailUrl);
+          }
+          if (pageTitle) {
+            pageTitle.textContent = data.title || "Livestream";
+          }
+          if (ogTitleMeta) {
+            ogTitleMeta.setAttribute("content", data.title || "Livestream Event");
+          }
+          if (twitterTitleMeta) {
+            twitterTitleMeta.setAttribute("content", data.title || "Livestream Event");
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -633,8 +657,6 @@ function LiveEventPage({ eventId, onBackToApp }) {
     const parsed = new Date(String(eventDetails.updatedAt).replace(" ", "T"));
     return Number.isNaN(parsed.getTime()) ? eventDetails.updatedAt : parsed.toLocaleString();
   }, [eventDetails]);
-
-  console.log(eventDetails?.thumbnail,"eventDetailseventDetails")
 
   return (
     <main
