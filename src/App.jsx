@@ -634,6 +634,8 @@ function LiveEventPage({ eventId, onBackToApp }) {
     return Number.isNaN(parsed.getTime()) ? eventDetails.updatedAt : parsed.toLocaleString();
   }, [eventDetails]);
 
+  console.log(eventDetails?.thumbnail,"eventDetailseventDetails")
+
   return (
     <main
       className="event-page"
