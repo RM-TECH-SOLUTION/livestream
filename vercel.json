@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/:eventId/:slug",
-      "destination": "/api/:eventId/:slug"
+      "destination": "/api/event?eventId=:eventId&slug=:slug"
     },
     {
       "source": "/(.*)",
