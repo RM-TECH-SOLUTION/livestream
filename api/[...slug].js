@@ -1,7 +1,11 @@
 const API_BASE_URL = "https://api.rmtechsolution.com";
 const THUMBNAIL_BASE_URL = `${API_BASE_URL}/uploads/thumbnails`;
 const DEFAULT_IMAGE_URL = `${API_BASE_URL}/uploads/cms/merchantId_2/1785527012_cms_6a6cfae478fd8.jpeg`;
+const DEFAULT_TITLE = "Livestream Event";
+const DEFAULT_DESCRIPTION = "Join our live event";
 const SITE_ORIGIN = "https://livestream.storehub.co.in";
+
+const CRAWLER_USER_AGENT_PATTERN = /(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Xbot|LinkedInBot|Slackbot|Discordbot|TelegramBot|SkypeUriPreview|Googlebot|bingbot|DuckDuckBot|Yahoo! Slurp|embedly|quora link preview|pinterest|vkShare|W3C_Validator)/i;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -39,11 +43,11 @@ function normalizeEventPayload(payload) {
     return null;
   }
 
-  const title = getFirstString([event.title, event.event_title]) || "Livestream Event";
+  const title = getFirstString([event.title, event.event_title]) || DEFAULT_TITLE;
   const subtitle = getFirstString([event.subtitle, event.description, event.event_description]);
-  const date = getFirstString([event.event_date, event.eventDate]);
-  const time = getFirstString([event.event_time, event.eventTime]);
-  const description = subtitle || [date, time].filter(Boolean).join(" ") || "Join our live event";
+  const eventDate = getFirstString([event.event_date, event.eventDate]);
+  const eventTime = getFirstString([event.event_time, event.eventTime]);
+  const description = subtitle || [eventDate, eventTime].filter(Boolean).join(" ") || DEFAULT_DESCRIPTION;
 
   return {
     title,
@@ -52,15 +56,73 @@ function normalizeEventPayload(payload) {
   };
 }
 
-export default async function handler(req, res) {
-  const pathname = req.url.split("?")[0];
-  const match = pathname.match(/^\/(?:api\/)?(\d+)\/([^/]+)\/?$/);
+function isCrawlerRequest(req) {
+  const userAgent = String(req.headers["user-agent"] || "");
+  return CRAWLER_USER_AGENT_PATTERN.test(userAgent);
+}
 
-  if (!match) {
-    return res.status(404).json({ error: "Not found" });
+function buildMetaHtml({ title, description, image, url }) {
+  const safeTitle = escapeHtml(title || DEFAULT_TITLE);
+  const safeDescription = escapeHtml(description || DEFAULT_DESCRIPTION);
+  const safeImage = escapeHtml(image || DEFAULT_IMAGE_URL);
+  const safeUrl = escapeHtml(url || SITE_ORIGIN);
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="${safeDescription}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${safeTitle}" />
+    <meta property="og:description" content="${safeDescription}" />
+    <meta property="og:image" content="${safeImage}" />
+    <meta property="og:url" content="${safeUrl}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${safeTitle}" />
+    <meta name="twitter:description" content="${safeDescription}" />
+    <meta name="twitter:image" content="${safeImage}" />
+    <title>${safeTitle}</title>
+  </head>
+  <body>
+    <noscript>Open this page in a browser to continue.</noscript>
+  </body>
+</html>`;
+}
+
+function extractRouteParts(req) {
+  const slugParts = Array.isArray(req.query?.slug)
+    ? req.query.slug
+    : String(req.query?.slug || "").split("/").filter(Boolean);
+
+  const eventId = String(slugParts[0] || "");
+  const eventSlug = String(slugParts[1] || "event");
+
+  return { eventId, eventSlug };
+}
+
+export default async function handler(req, res) {
+  const { eventId, eventSlug } = extractRouteParts(req);
+
+  if (!/^\d+$/.test(eventId)) {
+    return res.status(404).send("Not found");
   }
 
-  const [, eventId, slug] = match;
+  const spaEventUrl = `${SITE_ORIGIN}/${eventId}/${encodeURIComponent(eventSlug)}`;
+
+  // If a browser directly hits this function route, send it back to the SPA URL.
+  if (!isCrawlerRequest(req)) {
+    res.setHeader("Cache-Control", "no-store");
+    return res.redirect(302, spaEventUrl);
+  }
+
+  let meta = {
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    image: DEFAULT_IMAGE_URL,
+    url: spaEventUrl
+  };
 
   try {
     const response = await fetch(`${API_BASE_URL}/fetchLiveEvent.php?id=${eventId}`, {
@@ -68,56 +130,24 @@ export default async function handler(req, res) {
       headers: { "Content-Type": "application/json" }
     });
 
-    if (!response.ok) {
-      throw new Error(`Event request failed with status ${response.status}`);
+    if (response.ok) {
+      const payload = await response.json();
+      const event = normalizeEventPayload(payload);
+
+      if (event) {
+        meta = {
+          title: event.title,
+          description: event.description,
+          image: event.thumbnailUrl,
+          url: spaEventUrl
+        };
+      }
     }
-
-    const payload = await response.json();
-    const event = normalizeEventPayload(payload);
-
-    if (!event) {
-      throw new Error("Event payload was empty.");
-    }
-
-    const eventTitle = escapeHtml(event.title);
-    const eventDescription = escapeHtml(event.description);
-    const thumbnailUrl = escapeHtml(event.thumbnailUrl);
-    const eventUrl = escapeHtml(`${SITE_ORIGIN}/${eventId}/${slug}`);
-
-    const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/livestream.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="${eventDescription}" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="${eventTitle}" />
-    <meta property="og:description" content="${eventDescription}" />
-    <meta property="og:image" content="${thumbnailUrl}" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="${eventUrl}" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${eventTitle}" />
-    <meta name="twitter:description" content="${eventDescription}" />
-    <meta name="twitter:image" content="${thumbnailUrl}" />
-    <link rel="apple-touch-icon" href="/livestream.png" />
-    <title>${eventTitle}</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"><\/script>
-  </body>
-</html>`;
-
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
-    return res.status(200).send(html);
   } catch (error) {
-    console.error("Error fetching event:", error);
-    return res.status(500).json({ error: "Failed to generate preview" });
+    console.error("Dynamic meta fetch failed:", error);
   }
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600");
+  return res.status(200).send(buildMetaHtml(meta));
 }
