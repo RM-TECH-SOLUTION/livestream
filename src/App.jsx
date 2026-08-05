@@ -571,14 +571,14 @@ function LiveEventPage({ eventId, onBackToApp }) {
 
         if (isMounted) {
           setEventDetails(data);
-          
+          console.log("Loaded event details:", data.thumbnail);
           // Update meta tags dynamically
           const thumbnailUrl = resolveUploadUrl(data.thumbnail, THUMBNAIL_BASE_URL);
-          const ogImageMeta = document.querySelector('meta[property="og:image"]');
-          const twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
+          const ogImageMeta = document.querySelector('#meta-og-image') || document.querySelector('meta[property="og:image"]');
+          const twitterImageMeta = document.querySelector('#meta-twitter-image') || document.querySelector('meta[name="twitter:image"]');
           const pageTitle = document.querySelector('title');
-          const ogTitleMeta = document.querySelector('meta[property="og:title"]');
-          const twitterTitleMeta = document.querySelector('meta[name="twitter:title"]');
+          const ogTitleMeta = document.querySelector('#meta-og-title') || document.querySelector('meta[property="og:title"]');
+          const twitterTitleMeta = document.querySelector('#meta-twitter-title') || document.querySelector('meta[name="twitter:title"]');
 
           if (ogImageMeta && thumbnailUrl) {
             ogImageMeta.setAttribute("content", thumbnailUrl);
@@ -648,7 +648,6 @@ function LiveEventPage({ eventId, onBackToApp }) {
 
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }, [eventDetails]);
-  console.log("WhatsApp Share URL:", eventDetails?.thumbnail);
 
   const formattedUpdatedAt = useMemo(() => {
     if (!eventDetails?.updatedAt) {
@@ -1203,8 +1202,7 @@ function App() {
 
   const handlePreviewClick = (row) => {
     const nextPath = getEventRoute(row.apiId, row.name || row.title);
-    window.history.pushState({}, "", nextPath);
-    setCurrentPath(nextPath);
+    window.open(nextPath, "_blank", "noopener,noreferrer");
   };
 
   const handleFormSubmit = async (event) => {

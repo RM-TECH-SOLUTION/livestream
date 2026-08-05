@@ -5,6 +5,10 @@
       "destination": "/api/:path*"
     },
     {
+      "source": "/:eventId/:slug",
+      "destination": "/api/:eventId/:slug"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
