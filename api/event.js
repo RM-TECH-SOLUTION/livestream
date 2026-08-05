@@ -1,3 +1,5 @@
 export default function handler(req, res) {
-  res.send("HELLO");
+  res.json({
+    query: req.query
+  });
 }
