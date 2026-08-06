@@ -544,6 +544,13 @@ function EventsTable({ rows, isLoading, errorMessage, onEditClick, onPreviewClic
 }
 
 function LiveEventPage({ eventId, onBackToApp }) {
+
+  const effectiveEventId = useMemo(() => {
+    if (eventId) return String(eventId);
+    const match = window.location.pathname.match(/^\/(\d+)(?:\/[^/]+)?\/?$/);
+    return match ? match[1] : null;
+  }, [eventId]);
+
   const [eventDetails, setEventDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -569,7 +576,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
       setErrorMessage("");
 
       try {
-        const data = await fetchLiveEventById(eventId);
+        const data = await fetchLiveEventById(effectiveEventId);
 
         if (!data) {
           throw new Error("Live event not found.");
@@ -618,7 +625,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
     return () => {
       isMounted = false;
     };
-  }, [eventId]);
+ }, [effectiveEventId]);
 
   const customTemplateUrls = getEventTemplateUrls(eventDetails || {});
   const eventThumbnailUrl = resolveUploadUrl(eventDetails?.thumbnail, THUMBNAIL_BASE_URL);
@@ -634,7 +641,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
   const backgroundHero = isMobileViewport
     ? customTemplateUrls.mobileTemplateUrl || customTemplateUrls.webTemplateUrl || eventThumbnailUrl
     : customTemplateUrls.webTemplateUrl || customTemplateUrls.mobileTemplateUrl || eventThumbnailUrl;
-  const chatStreamId = String(eventDetails?.id ?? eventDetails?.apiId ?? eventId);
+  const chatStreamId = String(eventDetails?.id ?? eventDetails?.apiId ?? effectiveEventId);
 
 
   const handleWhatsAppShare = useCallback(() => {
