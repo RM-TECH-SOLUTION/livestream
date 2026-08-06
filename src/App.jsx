@@ -61,9 +61,15 @@ function getEventRoute(eventId, eventName) {
   return `/${eventId}/${slugify(eventName)}`;
 }
 
-function getRouteEventId(pathname) {
-  const match = pathname.match(/^\/(\d+)(?:\/[^/]+)?\/?$/);
-  return match ? match[1] : null;
+function getRouteEventId(pathname, search) {
+  const segmentMatch = pathname.match(/^\/(\d+)(?:\/[^/]+)?\/?$/);
+  if (segmentMatch) return segmentMatch[1];
+  if (pathname === "/api/event" || pathname === "/api/event/") {
+    const params = new URLSearchParams(search || "");
+    const eventId = params.get("eventId");
+    if (eventId && /^\d+$/.test(eventId)) return eventId;
+  }
+  return null;
 }
 
 function resolveUploadUrl(assetPath, baseUrl) {
@@ -1070,7 +1076,7 @@ function App() {
     };
   }, []);
 
-  const routeEventId = getRouteEventId(currentPath);
+  const routeEventId = getRouteEventId(currentPath, window.location.search);
 
   const filteredEvents = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -1200,9 +1206,10 @@ function App() {
     handleSectionSelect("create");
   };
 
-  const handlePreviewClick = (row) => {
-    const nextPath = getEventRoute(row.apiId, row.name || row.title);
-    window.open(nextPath, "_blank", "noopener,noreferrer");
+ const handlePreviewClick = (row) => {
+    const slug = slugify(row.name || row.title);
+    const previewUrl = `/api/event?eventId=${encodeURIComponent(row.apiId)}&slug=${encodeURIComponent(slug)}&preview=1`;
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleFormSubmit = async (event) => {
