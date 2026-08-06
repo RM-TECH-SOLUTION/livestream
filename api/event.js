@@ -124,14 +124,14 @@ try {
     return res.status(200).send(html);
   } catch {
     try {
-      const spaRes = await fetch(${SITE_ORIGIN}/);
+      const spaRes = await fetch(`${SITE_ORIGIN}/`);
       const html = await spaRes.text();
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "no-store");
       return res.status(200).send(html);
     } catch {
       res.setHeader("Cache-Control", "no-store");
-      return res.redirect(302, ${SITE_ORIGIN}/);
+      return res.redirect(302, `${SITE_ORIGIN}/`);
     }
   }
 }
