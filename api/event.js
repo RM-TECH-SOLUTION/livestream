@@ -115,24 +115,26 @@ const eventSlug = String(req.query.slug || "event");
 if (!isCrawlerRequest(req) && !previewMode) {
 try {
     const { readFileSync } = await import("fs");
-    const { join } = await import("path");
-    const html = readFileSync(join(__dirname, "../dist/index.html"), "utf8");
+    const { fileURLToPath } = await import("url");
+    const { dirname, join } = await import("path");
+    const __dir = dirname(fileURLToPath(import.meta.url));
+    const html = readFileSync(join(__dir, "../dist/index.html"), "utf8");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(html);
   } catch {
-    // Fallback: fetch from origin
     try {
       const spaRes = await fetch(${SITE_ORIGIN}/);
       const html = await spaRes.text();
       res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      res.setHeader("Cache-Control", "no-store");
       return res.status(200).send(html);
     } catch {
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-      return res.redirect(302, spaEventUrl);
+      res.setHeader("Cache-Control", "no-store");
+      return res.redirect(302, ${SITE_ORIGIN}/);
     }
   }
+}
 }
 
   let meta = {
