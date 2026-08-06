@@ -1207,9 +1207,8 @@ function App() {
   };
 
  const handlePreviewClick = (row) => {
-    const slug = slugify(row.name || row.title);
-    const previewUrl = `/api/event?eventId=${encodeURIComponent(row.apiId)}&slug=${encodeURIComponent(slug)}&preview=1`;
-    window.open(previewUrl, "_blank", "noopener,noreferrer");
+    const nextPath = getEventRoute(row.apiId, row.clientName || row.title);
+    window.open(nextPath, "_blank", "noopener,noreferrer");
   };
 
   const handleFormSubmit = async (event) => {

@@ -108,12 +108,21 @@ const eventSlug = String(req.query.slug || "event");
 
   const spaEventUrl = `${SITE_ORIGIN}/${eventId}/${encodeURIComponent(eventSlug)}`;
 
-  // If a browser directly hits this function route, send it back to the SPA URL.
+  // If a browser directly hits this function route, serve the SPA HTML directly
+  // (redirecting back to spaEventUrl would cause an infinite loop via Vercel rewrites).
   const previewMode = req.query.preview === "1";
 
 if (!isCrawlerRequest(req) && !previewMode) {
-  res.setHeader("Cache-Control", "no-store");
-  return res.redirect(302, spaEventUrl);
+  try {
+    const spaRes = await fetch(`${SITE_ORIGIN}/`);
+    const html = await spaRes.text();
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(html);
+  } catch {
+    res.setHeader("Cache-Control", "no-store");
+    return res.redirect(302, spaEventUrl);
+  }
 }
 
   let meta = {
