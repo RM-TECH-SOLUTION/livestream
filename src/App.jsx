@@ -64,11 +64,9 @@ function getEventRoute(eventId, eventName) {
 function getRouteEventId(pathname, search) {
   const segmentMatch = pathname.match(/^\/(\d+)(?:\/[^/]+)?\/?$/);
   if (segmentMatch) return segmentMatch[1];
-  if (pathname === "/api/event" || pathname === "/api/event/") {
-    const params = new URLSearchParams(search || "");
-    const eventId = params.get("eventId");
-    if (eventId && /^\d+$/.test(eventId)) return eventId;
-  }
+  const params = new URLSearchParams(search || "");
+  const eid = params.get("eid") || params.get("eventId");
+  if (eid && /^\d+$/.test(eid)) return eid;
   return null;
 }
 
@@ -607,6 +605,12 @@ function LiveEventPage({ eventId, onBackToApp }) {
           }
           if (twitterTitleMeta) {
             twitterTitleMeta.setAttribute("content", data.title || "Livestream Event");
+          }
+          const id = data.id || data.apiId || effectiveEventId;
+          const slug = slugify(data.client_name || data.title || "event");
+          const canonical = `/${id}/${slug}`;
+          if (window.location.pathname !== canonical) {
+            window.history.replaceState({}, "", canonical);
           }
         }
       } catch (error) {

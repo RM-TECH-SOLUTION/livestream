@@ -113,27 +113,8 @@ const eventSlug = String(req.query.slug || "event");
   const previewMode = req.query.preview === "1";
 
 if (!isCrawlerRequest(req) && !previewMode) {
-try {
-    const { readFileSync } = await import("fs");
-    const { fileURLToPath } = await import("url");
-    const { dirname, join } = await import("path");
-    const __dir = dirname(fileURLToPath(import.meta.url));
-    const html = readFileSync(join(__dir, "../dist/index.html"), "utf8");
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(200).send(html);
-  } catch {
-    try {
-      const spaRes = await fetch(`${SITE_ORIGIN}/`);
-      const html = await spaRes.text();
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.setHeader("Cache-Control", "no-store");
-      return res.status(200).send(html);
-    } catch {
-      res.setHeader("Cache-Control", "no-store");
-      return res.redirect(302, `${SITE_ORIGIN}/`);
-    }
-  }
+  res.setHeader("Cache-Control", "no-store");
+  return res.redirect(302, `${SITE_ORIGIN}/?eid=${eventId}`);
 }
 }
 
