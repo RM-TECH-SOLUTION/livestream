@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/event.js": {
+      "includeFiles": "dist/index.html"
+    }
+  },
   "rewrites": [
     {
       "source": "/:eventId/:slug",

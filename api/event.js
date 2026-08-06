@@ -113,15 +113,25 @@ const eventSlug = String(req.query.slug || "event");
   const previewMode = req.query.preview === "1";
 
 if (!isCrawlerRequest(req) && !previewMode) {
-  try {
-    const spaRes = await fetch(`${SITE_ORIGIN}/`);
-    const html = await spaRes.text();
+try {
+    const { readFileSync } = await import("fs");
+    const { join } = await import("path");
+    const html = readFileSync(join(__dirname, "../dist/index.html"), "utf8");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     return res.status(200).send(html);
   } catch {
-    res.setHeader("Cache-Control", "no-store");
-    return res.redirect(302, spaEventUrl);
+    // Fallback: fetch from origin
+    try {
+      const spaRes = await fetch(${SITE_ORIGIN}/);
+      const html = await spaRes.text();
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      return res.status(200).send(html);
+    } catch {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      return res.redirect(302, spaEventUrl);
+    }
   }
 }
 
