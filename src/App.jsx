@@ -641,6 +641,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
   const backgroundHero = isMobileViewport
     ? customTemplateUrls.mobileTemplateUrl || customTemplateUrls.webTemplateUrl || eventThumbnailUrl
     : customTemplateUrls.webTemplateUrl || customTemplateUrls.mobileTemplateUrl || eventThumbnailUrl;
+  const hasEventTemplate = Boolean(customTemplateUrls.webTemplateUrl || customTemplateUrls.mobileTemplateUrl);
   const chatStreamId = String(eventDetails?.id ?? eventDetails?.apiId ?? effectiveEventId);
 
 
@@ -673,12 +674,12 @@ function LiveEventPage({ eventId, onBackToApp }) {
 
   return (
     <main
-      className="event-page"
+      className={`event-page${hasEventTemplate ? " event-page--template" : ""}`}
       style={{
         "--event-bg-image": `url(${backgroundHero})`,
         backgroundImage: `url(${backgroundHero})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center right",
+        backgroundSize: "100% auto",
+        backgroundPosition: "center top",
         backgroundRepeat: "no-repeat"
       }}
     >

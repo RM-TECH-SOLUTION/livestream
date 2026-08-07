@@ -141,6 +141,13 @@ select:focus {
   background-color: #fff;
 }
 
+/* Fit the complete uploaded template to the page width without cropping. */
+.event-page--template {
+  background-size: 100% auto !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+}
+
 .event-page > * {
   position: relative;
   z-index: 1;
@@ -1756,6 +1763,12 @@ th {
     width: 100%;
     padding: 0;
     align-items: center;
+  }
+
+  .live-chat-shell {
+    width: calc(100% - 40px);
+    max-width: calc(100% - 40px);
+    margin: 12px 20px 0;
   }
 
   .event-video-row {
