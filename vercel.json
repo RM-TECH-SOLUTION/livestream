@@ -1,13 +1,17 @@
 {
   "functions": {
-    "api/event.js": {
+    "api/*.js": {
       "includeFiles": "dist/index.html"
     }
   },
   "rewrites": [
     {
-      "source": "/:eventId/:slug",
-      "destination": "/api/event?eventId=:eventId&slug=:slug"
+      "source": "/",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/:id(\\d+)/:slug",
+      "destination": "/api/event?id=:id&slug=:slug"
     },
     {
       "source": "/(.*)",

@@ -302,20 +302,16 @@ async function requestApi(path, options = {}) {
 }
 
 async function fetchLiveEventById(eventId) {
-  try {
-    const formData = new FormData();
-    formData.append("id", String(eventId));
-    const data = await requestApi("fetchLiveEvent.php", {
-      method: "POST",
-      body: formData
-    });
-    const payload = Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
-    return normalizeLiveEventDetails(payload);
-  } catch {
-    const data = await requestApi(`fetchLiveEvent.php?id=${encodeURIComponent(eventId)}`);
-    const payload = Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
-    return normalizeLiveEventDetails(payload);
-  }
+  const data = await requestApi(`fetchLiveEvent.php?id=${encodeURIComponent(eventId)}`);
+  const payload = Array.isArray(data.data) ? data.data[0] : data.data || data.event || data;
+  return normalizeLiveEventDetails(payload);
+}
+
+function getBootstrappedEvent(eventId) {
+  const event = window.EVENT;
+  if (!event || typeof event !== "object") return null;
+  const bootstrappedId = String(event.id ?? event.apiId ?? eventId);
+  return bootstrappedId === String(eventId) ? normalizeLiveEventDetails(event) : null;
 }
 
 function extractUploadedImageUrl(payload) {
@@ -574,7 +570,7 @@ function LiveEventPage({ eventId, onBackToApp }) {
       setErrorMessage("");
 
       try {
-        const data = await fetchLiveEventById(effectiveEventId);
+        const data = getBootstrappedEvent(effectiveEventId) || await fetchLiveEventById(effectiveEventId);
 
         if (!data) {
           throw new Error("Live event not found.");
